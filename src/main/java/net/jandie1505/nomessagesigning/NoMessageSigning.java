@@ -38,6 +38,8 @@ public class NoMessageSigning extends JavaPlugin implements Listener, CommandExe
     public void onEnable() {
         this.resetConfig();
         this.configFile = new File(this.getDataFolder(), "config.json");
+
+        this.reloadConfig();
         this.getServer().getPluginManager().registerEvents(this, this);
 
         PluginCommand command = this.getCommand(this.getName().toLowerCase());
@@ -260,6 +262,8 @@ public class NoMessageSigning extends JavaPlugin implements Listener, CommandExe
                             " - Chat as system messages: " + this.config.optJSONObject("bukkit_level", new JSONObject()).optBoolean("send_as_system_message", false) + "\n" +
                             " - Modify messages: " + this.config.optJSONObject("bukkit_level", new JSONObject()).optBoolean("modify_message", false)
             );
+
+            return true;
         }
 
         switch (args[0]) {
