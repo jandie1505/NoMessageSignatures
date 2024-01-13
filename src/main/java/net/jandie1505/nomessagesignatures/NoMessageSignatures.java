@@ -1,4 +1,4 @@
-package net.jandie1505.nomessagesigning;
+package net.jandie1505.nomessagesignatures;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.logging.Level;
 
-public class NoMessageSigning extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
+public class NoMessageSignatures extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
     private YamlConfiguration config;
     private boolean useAlternativeMode;
     private File configFile;
