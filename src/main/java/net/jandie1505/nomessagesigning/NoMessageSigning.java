@@ -1,13 +1,12 @@
 package net.jandie1505.nomessagesigning;
 
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import net.minecraft.network.Connection;
-import net.minecraft.network.chat.SignedMessageBody;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundDisguisedChatPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerChatPacket;
-import net.minecraft.network.protocol.game.ServerboundChatPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import org.bukkit.command.*;
@@ -59,9 +58,13 @@ public class NoMessageSigning extends JavaPlugin implements Listener, CommandExe
         boolean skip = true;
         Map<String, Object> packetConfig = Map.copyOf(this.config.optJSONObject("packet_level", new JSONObject()).toMap());
 
-        for (Object object : packetConfig.keySet()) {
+        System.out.println(packetConfig);
 
-            if (object instanceof Boolean && (Boolean) object) {
+        for (String key : packetConfig.keySet()) {
+
+            Object value = packetConfig.get(key);
+
+            if (value instanceof Boolean && (Boolean) value) {
                 skip = false;
                 break;
             }
@@ -93,7 +96,6 @@ public class NoMessageSigning extends JavaPlugin implements Listener, CommandExe
 
         JSONObject packetLevelConfig = new JSONObject();
         packetLevelConfig.put("block_outgoing_chat_signatures", true);
-        packetLevelConfig.put("block_incoming_chat_signatures", true);
         this.config.put("packet_level", packetLevelConfig);
 
         JSONObject bukkitLevelConfig = new JSONObject();
@@ -164,35 +166,13 @@ public class NoMessageSigning extends JavaPlugin implements Listener, CommandExe
         // OUTGOING CHAT MESSAGES (Client --> Server XXX Clients)
         if (this.config.optJSONObject("packet_level", new JSONObject()).optBoolean("block_outgoing_chat_signatures", true)) {
 
-            // This removes all outgoing chat message signatures
-            connection.channel.pipeline().addBefore("packet_handler", this.getName() + "-READER", new ChannelInboundHandlerAdapter() {
-
-                public void channelRead(ChannelHandlerContext ctx, Object msg) {
-
-                    if (msg instanceof ClientboundPlayerChatPacket old) {
-                        SignedMessageBody.Packed body = new SignedMessageBody.Packed(old.body().content(), old.body().timeStamp(), 0, old.body().lastSeen());
-                        ClientboundPlayerChatPacket packet = new ClientboundPlayerChatPacket(old.sender(), old.index(), null, body, old.unsignedContent(), old.filterMask(), old.chatType());
-                        ctx.fireChannelRead(packet);
-                        return;
-                    }
-
-                    ctx.fireChannelRead(msg);
-                }
-
-            });
-
-        }
-
-        // INCOMING CHAT MESSAGES (Client XXX Server --> Clients)
-        if (this.config.optJSONObject("packet_level", new JSONObject()).optBoolean("block_incoming_chat_signatures", true)) {
-
             // This removes all incoming chat message signatures (so that the server doesn't even know that there was a signed chat message)
             connection.channel.pipeline().addBefore("packet_handler", this.getName() + "-WRITER", new ChannelOutboundHandlerAdapter() {
 
                 public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
 
-                    if (msg instanceof ServerboundChatPacket old) {
-                        ServerboundChatPacket packet = new ServerboundChatPacket(old.message(), old.timeStamp(), 0, null, old.lastSeenMessages());
+                    if (msg instanceof ClientboundPlayerChatPacket old) {
+                        ClientboundDisguisedChatPacket packet = new ClientboundDisguisedChatPacket(old.unsignedContent() != null ? old.unsignedContent() : Component.literal(old.body().content()), old.chatType());
                         ctx.write(packet, promise);
                         return;
                     }
@@ -216,10 +196,9 @@ public class NoMessageSigning extends JavaPlugin implements Listener, CommandExe
         }
 
         try {
-            connection.channel.pipeline().remove(this.getName() + "-READER");
             connection.channel.pipeline().remove(this.getName() + "-WRITER");
-        } catch (NoSuchElementException e) {
-            this.getLogger().log(Level.WARNING, "Failed to remove a packet reader/writer in a player's pipeline. This is not a fatal exception, since it will be cleaned up by garbage collection.", e);
+        } catch (NoSuchElementException ignored) {
+            // normally, the packer writer is already removed at this point
         }
 
     }
@@ -229,9 +208,14 @@ public class NoMessageSigning extends JavaPlugin implements Listener, CommandExe
 
         // Cancels the chat event and sends chat message as system message to all recipients.
         if (this.config.optJSONObject("bukkit_level", new JSONObject()).optBoolean("send_as_system_message", false)) {
+
+            if (event.isCancelled()) {
+                return;
+            }
+
             event.setCancelled(true);
 
-            String formattedMessage = event.getFormat().replace("%1", event.getPlayer().getDisplayName()).replace("%2", event.getMessage());
+            String formattedMessage = event.getFormat().replace("%1$s", event.getPlayer().getDisplayName()).replace("%2$s", event.getMessage());
 
             for (Player player : event.getRecipients()) {
                 player.sendMessage(formattedMessage);
@@ -256,11 +240,10 @@ public class NoMessageSigning extends JavaPlugin implements Listener, CommandExe
         if (args.length < 1) {
             sender.sendMessage(
                     "This server is running NoMessageSigning.\n" +
-                            "Enabled checks:\n" +
-                            " - Remove incoming signatures: " + this.config.optJSONObject("packet_level", new JSONObject()).optBoolean("block_incoming_chat_signatures", true) + "\n" +
+                            "Enabled protections:\n" +
                             " - Remove outgoing signatures: " + this.config.optJSONObject("packet_level", new JSONObject()).optBoolean("block_outgoing_chat_signatures", true) + "\n" +
                             " - Chat as system messages: " + this.config.optJSONObject("bukkit_level", new JSONObject()).optBoolean("send_as_system_message", false) + "\n" +
-                            " - Modify messages: " + this.config.optJSONObject("bukkit_level", new JSONObject()).optBoolean("modify_message", false)
+                            " - Modify messages (unsafe): " + this.config.optJSONObject("bukkit_level", new JSONObject()).optBoolean("modify_message", false)
             );
 
             return true;
