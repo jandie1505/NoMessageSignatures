@@ -29,11 +29,6 @@
             <scope>provided</scope>
             <classifier>remapped-mojang</classifier>
         </dependency>
-        <dependency>
-            <groupId>org.json</groupId>
-            <artifactId>json</artifactId>
-            <version>20231013</version>
-        </dependency>
     </dependencies>
 
     <build>
@@ -52,12 +47,6 @@
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer"/>
                             </transformers>
-                            <relocations>
-                                <relocation>
-                                    <pattern>org.json</pattern>
-                                    <shadedPattern>net.jandie1505.nomessagesigning.dependencies.org.json</shadedPattern>
-                                </relocation>
-                            </relocations>
                         </configuration>
                     </execution>
                 </executions>

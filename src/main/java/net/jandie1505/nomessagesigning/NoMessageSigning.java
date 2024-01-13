@@ -7,9 +7,12 @@ import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundDisguisedChatPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerChatPacket;
+import net.minecraft.network.protocol.game.ClientboundServerDataPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import org.bukkit.command.*;
+import org.bukkit.configuration.InvalidConfigurationException;
+import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.craftbukkit.v1_20_R2.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -19,26 +22,25 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import java.io.*;
 import java.lang.reflect.Field;
 import java.util.List;
-import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.logging.Level;
 
 public class NoMessageSigning extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
-    private JSONObject config;
+    private YamlConfiguration config;
+    private boolean useAlternativeMode;
     private File configFile;
 
     @Override
     public void onEnable() {
         this.resetConfig();
-        this.configFile = new File(this.getDataFolder(), "config.json");
+        this.configFile = new File(this.getDataFolder(), "config.yml");
 
         this.reloadConfig();
+
         this.getServer().getPluginManager().registerEvents(this, this);
 
         PluginCommand command = this.getCommand(this.getName().toLowerCase());
@@ -49,29 +51,35 @@ public class NoMessageSigning extends JavaPlugin implements Listener, CommandExe
         } else {
             this.getLogger().warning("Plugin command is not in plugin.yml");
         }
+
     }
 
     // UTILITIES
 
-    private boolean skipPacketLevelChecks() {
+    private void setUseAlternativeMode() {
 
-        boolean skip = true;
-        Map<String, Object> packetConfig = Map.copyOf(this.config.optJSONObject("packet_level", new JSONObject()).toMap());
+        switch (this.config.getString("mode", "auto")) {
+            case "remove_signatures" -> this.useAlternativeMode = false;
+            case "system_messages" -> this.useAlternativeMode = true;
+            default -> {
 
-        System.out.println(packetConfig);
+                try {
+                    Class.forName("org.bukkit.craftbukkit.v1_20_R2.entity.CraftPlayer");
+                } catch (ClassNotFoundException e) {
+                    this.useAlternativeMode = true;
+                }
 
-        for (String key : packetConfig.keySet()) {
-
-            Object value = packetConfig.get(key);
-
-            if (value instanceof Boolean && (Boolean) value) {
-                skip = false;
-                break;
+                this.useAlternativeMode = false;
             }
-
         }
 
-        return skip;
+    }
+
+    public String getProtectionMessage() {
+        return "§7The following types of chat messages are protected from chat reporting:\n" +
+                " " + "§7[§a✔§7]" + " §7Chat messages\n" +
+                " " + (!this.useAlternativeMode ? "§7[§a✔§7]" : "§7[§c❌§7]") + " §7/say, /me and other public messaging commands\n" +
+                " " + (!this.useAlternativeMode ? "§7[§a✔§7]" : "§7[§c❌§7]") + " §7/msg, /tell and other private messaging commands";
     }
 
     private Connection getConnection(ServerPlayer serverPlayer) {
@@ -92,35 +100,38 @@ public class NoMessageSigning extends JavaPlugin implements Listener, CommandExe
     // CONFIG
 
     public void resetConfig() {
-        this.config = new JSONObject();
+        this.config = new YamlConfiguration();
 
-        JSONObject packetLevelConfig = new JSONObject();
-        packetLevelConfig.put("block_outgoing_chat_signatures", true);
-        this.config.put("packet_level", packetLevelConfig);
+        this.config.set("mode", "auto");
+        this.config.setComments("mode", List.of(
+                "This value changes the method the plugin is using to remove message signatures.",
+                "Keep this value on 'auto' if you don't know what you're doing.",
+                "",
+                "Available Values:",
+                "- auto:",
+                "  Use 'remove_signatures' if available, else use 'system_messages'.",
+                "- remove_signatures:",
+                "  Replaces all ClientboundPlayerChatPackets with DisguisedPlayerChatPackets (which have no signature).",
+                "  Any chat plugin should work as normal in this mode, since the modification is made after everything has already changed.",
+                "  This mode only works if the server is running the version that the plugin was made for.",
+                "- system_messages:",
+                "  Cancels the chat event at the HIGHEST priority and sends the message as system message to all recipients (if the event has not been cancelled before).",
+                "  Any chat plugin should work as normal when it is not using the HIGHEST priority for its chat events.",
+                "  SINCE PRIVATE MESSAGES ARE NOT AFFECTED BY THE CHAT EVENT, THEY ARE STILL SIGNED AND REPORTABLE!",
+                "  This mode also should work when the server does not have the version the plugin was made for (except the chat event has been changed)."
+        ));
 
-        JSONObject bukkitLevelConfig = new JSONObject();
-        bukkitLevelConfig.put("send_as_system_message", false);
-        bukkitLevelConfig.put("modify_message", false);
-        this.config.put("bukkit_level", bukkitLevelConfig);
-    }
+        this.config.set("hide_banner", false);
+        this.config.setComments("hide_banner", List.of(
+                "Hides the 'Chat Messages cannot be verified on this server' banner.",
+                "This does only work if the mode is set to 'auto' or 'remove_signatures'."
+        ));
 
-    private JSONObject loadConfig() throws IOException, JSONException {
-        BufferedReader br = new BufferedReader(new FileReader(this.configFile));
-        StringBuilder sb = new StringBuilder();
-        String line = br.readLine();
-        while (line != null) {
-            sb.append(line);
-            sb.append(System.lineSeparator());
-            line = br.readLine();
-        }
-        return new JSONObject(sb.toString());
-    }
+        this.config.set("announce_protections", true);
+        this.config.setComments("announce_protections", List.of("If this is enabled, which type of messages are encrypted and which are not."));
 
-    private void writeConfig() throws IOException {
-        FileWriter writer = new FileWriter(this.configFile);
-        writer.write(this.config.toString(4));
-        writer.flush();
-        writer.close();
+        this.setUseAlternativeMode();
+
     }
 
     public void reloadConfig() {
@@ -129,22 +140,14 @@ public class NoMessageSigning extends JavaPlugin implements Listener, CommandExe
             if (!this.configFile.exists()) {
                 this.configFile.getParentFile().mkdirs();
                 this.configFile.createNewFile();
-                this.writeConfig();
+                this.config.save(this.configFile);
             }
 
-            JSONObject loadedConfig = this.loadConfig();
+            this.config.load(this.configFile);
+            this.setUseAlternativeMode();
 
-            if (loadedConfig.optBoolean("recreate_config", false)) {
-                this.resetConfig();
-                this.writeConfig();
-            } else {
-                for (String key : loadedConfig.keySet()) {
-                    this.config.put(key, loadedConfig.get(key));
-                }
-            }
-
-        } catch (IOException | JSONException e) {
-            this.getLogger().log(Level.WARNING, "Error loading config, using defaults");
+        } catch (IOException | InvalidConfigurationException e) {
+            this.getLogger().log(Level.WARNING, "Exception while loading config, using defaults", e);
         }
     }
 
@@ -153,20 +156,19 @@ public class NoMessageSigning extends JavaPlugin implements Listener, CommandExe
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerJoin(PlayerJoinEvent event) {
 
-        if (this.skipPacketLevelChecks()) {
-            return;
+        if (this.config.getBoolean("announce_protections", false)) {
+            event.getPlayer().sendMessage(this.getProtectionMessage());
         }
 
-        Connection connection = this.getConnection(((CraftPlayer) event.getPlayer()).getHandle());
+        if (!this.useAlternativeMode) {
 
-        if (connection == null) {
-            return;
-        }
+            Connection connection = this.getConnection(((CraftPlayer) event.getPlayer()).getHandle());
 
-        // OUTGOING CHAT MESSAGES (Client --> Server XXX Clients)
-        if (this.config.optJSONObject("packet_level", new JSONObject()).optBoolean("block_outgoing_chat_signatures", true)) {
+            if (connection == null) {
+                return;
+            }
 
-            // This removes all incoming chat message signatures (so that the server doesn't even know that there was a signed chat message)
+            // OUTGOING CHAT MESSAGES (Client --> Server XXX Clients)
             connection.channel.pipeline().addBefore("packet_handler", this.getName() + "-WRITER", new ChannelOutboundHandlerAdapter() {
 
                 public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
@@ -175,6 +177,14 @@ public class NoMessageSigning extends JavaPlugin implements Listener, CommandExe
                         ClientboundDisguisedChatPacket packet = new ClientboundDisguisedChatPacket(old.unsignedContent() != null ? old.unsignedContent() : Component.literal(old.body().content()), old.chatType());
                         ctx.write(packet, promise);
                         return;
+                    } else if (msg instanceof ClientboundServerDataPacket old) {
+
+                        if (config.getBoolean("hide_banner", false)) {
+                            ClientboundServerDataPacket packet = new ClientboundServerDataPacket(old.getMotd(), old.getIconBytes(), true);
+                            ctx.write(packet, promise);
+                            return;
+                        }
+
                     }
 
                     ctx.write(msg, promise);
@@ -189,16 +199,20 @@ public class NoMessageSigning extends JavaPlugin implements Listener, CommandExe
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
 
-        Connection connection = this.getConnection(((CraftPlayer) event.getPlayer()).getHandle());
+        if (!this.useAlternativeMode) {
 
-        if (connection == null) {
-            return;
-        }
+            Connection connection = this.getConnection(((CraftPlayer) event.getPlayer()).getHandle());
 
-        try {
-            connection.channel.pipeline().remove(this.getName() + "-WRITER");
-        } catch (NoSuchElementException ignored) {
-            // normally, the packer writer is already removed at this point
+            if (connection == null) {
+                return;
+            }
+
+            try {
+                connection.channel.pipeline().remove(this.getName() + "-WRITER");
+            } catch (NoSuchElementException ignored) {
+                // normally, the packer writer is already removed at this point
+            }
+
         }
 
     }
@@ -207,7 +221,7 @@ public class NoMessageSigning extends JavaPlugin implements Listener, CommandExe
     public void onAsyncPlayerChat(AsyncPlayerChatEvent event) {
 
         // Cancels the chat event and sends chat message as system message to all recipients.
-        if (this.config.optJSONObject("bukkit_level", new JSONObject()).optBoolean("send_as_system_message", false)) {
+        if (this.useAlternativeMode) {
 
             if (event.isCancelled()) {
                 return;
@@ -224,12 +238,6 @@ public class NoMessageSigning extends JavaPlugin implements Listener, CommandExe
             return;
         }
 
-        // Modifies the message that the signature is invalid. This does not prevent the signature to be sent to the client!
-        if (this.config.optJSONObject("bukkit_level", new JSONObject()).optBoolean("modify_message", false)) {
-            event.setMessage(event.getMessage() + " ");
-            return;
-        }
-
     }
 
     // COMMAND
@@ -238,13 +246,7 @@ public class NoMessageSigning extends JavaPlugin implements Listener, CommandExe
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
 
         if (args.length < 1) {
-            sender.sendMessage(
-                    "This server is running NoMessageSigning.\n" +
-                            "Enabled protections:\n" +
-                            " - Remove outgoing signatures: " + this.config.optJSONObject("packet_level", new JSONObject()).optBoolean("block_outgoing_chat_signatures", true) + "\n" +
-                            " - Chat as system messages: " + this.config.optJSONObject("bukkit_level", new JSONObject()).optBoolean("send_as_system_message", false) + "\n" +
-                            " - Modify messages (unsafe): " + this.config.optJSONObject("bukkit_level", new JSONObject()).optBoolean("modify_message", false)
-            );
+            sender.sendMessage(this.getProtectionMessage());
 
             return true;
         }
@@ -279,7 +281,7 @@ public class NoMessageSigning extends JavaPlugin implements Listener, CommandExe
 
     // GETTER
 
-    public JSONObject getPluginConfig() {
+    public YamlConfiguration getPluginConfig() {
         return this.config;
     }
 
