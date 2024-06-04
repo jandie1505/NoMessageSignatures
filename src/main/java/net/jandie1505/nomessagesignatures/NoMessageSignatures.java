@@ -13,7 +13,7 @@ import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import org.bukkit.command.*;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.craftbukkit.v1_20_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_20_R4.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -64,7 +64,7 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
             default -> {
 
                 try {
-                    Class.forName("org.bukkit.craftbukkit.v1_20_R3.entity.CraftPlayer");
+                    Class.forName("org.bukkit.craftbukkit.v1_20_R4.entity.CraftPlayer");
                 } catch (ClassNotFoundException e) {
                     this.useAlternativeMode = true;
                 }
@@ -180,7 +180,7 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
                     } else if (msg instanceof ClientboundServerDataPacket old) {
 
                         if (config.getBoolean("hide_banner", false)) {
-                            ClientboundServerDataPacket packet = new ClientboundServerDataPacket(old.getMotd(), old.getIconBytes(), true);
+                            ClientboundServerDataPacket packet = new ClientboundServerDataPacket(old.motd(), old.iconBytes());
                             ctx.write(packet, promise);
                             return;
                         }
