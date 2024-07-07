@@ -9,11 +9,12 @@ import net.minecraft.network.protocol.game.ClientboundDisguisedChatPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerChatPacket;
 import net.minecraft.network.protocol.game.ClientboundServerDataPacket;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.ServerCommonPacketListenerImpl;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import org.bukkit.command.*;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.craftbukkit.v1_20_R4.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_21_R1.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -23,8 +24,10 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
+import javax.management.AttributeNotFoundException;
 import java.io.*;
 import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.logging.Level;
@@ -33,9 +36,12 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
     private YamlConfiguration config;
     private boolean useAlternativeMode;
     private File configFile;
+    private boolean error;
 
     @Override
     public void onEnable() {
+        this.error = false;
+
         this.resetConfig();
         this.configFile = new File(this.getDataFolder(), "config.yml");
 
@@ -82,15 +88,25 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
                 " " + (!this.useAlternativeMode ? "§7[§a✔§7]" : "§7[§c❌§7]") + " §7/msg, /tell and other private messaging commands";
     }
 
+    public String getNotProtectedMessage() {
+        return "\n§4§l ---------- WARNING! ----------\n" +
+                "§4An error with NoMessageSignatures occurred.§r\n" +
+                "§4§lYOU ARE NO LONGER PROTECTED FROM CHAT REPORTING!§r\n" +
+                "§4Consider not using the chat at all until this error is fixed.§r\n" +
+                "§4§l--------------------§r\n";
+    }
+
     private Connection getConnection(ServerPlayer serverPlayer) {
 
         try {
-            ServerGamePacketListenerImpl serverGamePacketListener = serverPlayer.connection;
-            Field field = serverGamePacketListener.getClass().getField("c");
+            ServerCommonPacketListenerImpl serverGamePacketListener = serverPlayer.connection;
+
+            Field field = ServerCommonPacketListenerImpl.class.getDeclaredField("e");
             field.setAccessible(true);
 
             return  (Connection) field.get(serverGamePacketListener);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
+        } catch (Exception e) {
+            this.error = true;
             this.getLogger().log(Level.WARNING, "Exception while getting connection of player " + serverPlayer.getUUID(), e);
             return null;
         }
@@ -156,7 +172,7 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerJoin(PlayerJoinEvent event) {
 
-        if (this.config.getBoolean("announce_protections", false)) {
+        if (this.config.getBoolean("announce_protections", false) && !this.error) {
             event.getPlayer().sendMessage(this.getProtectionMessage());
         }
 
@@ -165,6 +181,7 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
             Connection connection = this.getConnection(((CraftPlayer) event.getPlayer()).getHandle());
 
             if (connection == null) {
+                event.getPlayer().sendMessage(this.getNotProtectedMessage());
                 return;
             }
 
