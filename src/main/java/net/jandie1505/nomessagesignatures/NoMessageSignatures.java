@@ -70,12 +70,12 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
             default -> {
 
                 try {
-                    Class.forName("org.bukkit.craftbukkit.v1_20_R4.entity.CraftPlayer");
+                    Class.forName("org.bukkit.craftbukkit.v1_21_R1.entity.CraftPlayer");
+                    this.useAlternativeMode = true;
                 } catch (ClassNotFoundException e) {
                     this.useAlternativeMode = true;
                 }
 
-                this.useAlternativeMode = false;
             }
         }
 
@@ -172,17 +172,19 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerJoin(PlayerJoinEvent event) {
 
-        if (this.config.getBoolean("announce_protections", false) && !this.error) {
-            event.getPlayer().sendMessage(this.getProtectionMessage());
-        }
-
         if (!this.useAlternativeMode) {
 
             Connection connection = this.getConnection(((CraftPlayer) event.getPlayer()).getHandle());
 
             if (connection == null) {
                 event.getPlayer().sendMessage(this.getNotProtectedMessage());
+                this.error = true;
                 return;
+            }
+
+            // Show protected message to player
+            if (this.config.getBoolean("announce_protections", false) && !this.error) {
+                event.getPlayer().sendMessage(this.getProtectionMessage());
             }
 
             // OUTGOING CHAT MESSAGES (Client --> Server XXX Clients)
@@ -208,6 +210,13 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
                 }
 
             });
+
+        } else {
+
+            // Show protected message in alternative mode
+            if (this.config.getBoolean("announce_protections", false) && !this.error) {
+                event.getPlayer().sendMessage(this.getProtectionMessage());
+            }
 
         }
 
@@ -263,7 +272,7 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
 
         if (args.length < 1) {
-            sender.sendMessage(this.getProtectionMessage());
+            sender.sendMessage(this.error ? this.getNotProtectedMessage() : this.getProtectionMessage());
 
             return true;
         }
