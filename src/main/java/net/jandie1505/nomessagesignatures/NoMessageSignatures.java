@@ -71,7 +71,7 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
 
                 try {
                     Class.forName("org.bukkit.craftbukkit.v1_21_R1.entity.CraftPlayer");
-                    this.useAlternativeMode = true;
+                    this.useAlternativeMode = false;
                 } catch (ClassNotFoundException e) {
                     this.useAlternativeMode = true;
                 }
