@@ -8,12 +8,13 @@ If the plugin is not available for your minecraft version, you can still use it,
 | Command | Description | Permission |
 |--|--|--|
 | `/nomessagesignatures` | Shows which types of messages are protected | Everyone |
+| `/nomessagesignatures mode` | Shows the current mode that is used to prevent chat reporting | Everyone |
 | `/nomessagesignatures reload` | Reload the config | Console |
 ## Configuration
 The plugin should work out of the box without any configuration needed.  
 But if you want to change something, here are the config values:
 | Option | Default | Description |
 |--|--|--|
-| `mode` | `auto` | Changes the way the plugin removes the signatures from the message. This should only be changed if you know what you're doing. Read comment in config file for more information. |
-| `hide_banner` | `false` | Hides the "Chat messages on this server can't be verified banner". |
+| `disable_packet_mode` | `false` | Disables the Packet replacement mode. Changing this is not recommended. Read comment in config file for more information. |
+| `hide_banner` | `false` | Hides the "Chat messages on this server can't be verified banner" (disable this if you encounter issues with it). |
 | `announce_protections` | `true` | When enabled, every player will get a info message about which protections are enabled. |
