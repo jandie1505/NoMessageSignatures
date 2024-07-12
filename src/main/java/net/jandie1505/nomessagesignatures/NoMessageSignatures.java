@@ -10,7 +10,6 @@ import net.minecraft.network.protocol.game.ClientboundPlayerChatPacket;
 import net.minecraft.network.protocol.game.ClientboundServerDataPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerCommonPacketListenerImpl;
-import net.minecraft.server.network.ServerGamePacketListenerImpl;
 import org.bukkit.command.*;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -24,23 +23,25 @@ import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import javax.management.AttributeNotFoundException;
 import java.io.*;
 import java.lang.reflect.Field;
-import java.util.Arrays;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.logging.Level;
 
 public class NoMessageSignatures extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
+    public static final String TARGET_VERSION = "v1_21_R1";
+    private final Mode packetMode;
     private YamlConfiguration config;
-    private boolean useAlternativeMode;
     private File configFile;
-    private boolean error;
+
+    public NoMessageSignatures() {
+        this.packetMode = new Mode();
+    }
 
     @Override
     public void onEnable() {
-        this.error = false;
+
+        // The important stuff
 
         this.resetConfig();
         this.configFile = new File(this.getDataFolder(), "config.yml");
@@ -58,42 +59,53 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
             this.getLogger().warning("Plugin command is not in plugin.yml");
         }
 
+        this.packetMode.init(!this.config.getBoolean("disable_packet_mode", false) && this.hasCorrectVersion());
+
+        // Info message
+
+        this.getLogger().log(
+                Level.INFO,
+                "\n" +
+                " _  _     __  __                          ___ _                _                   \n" +
+                "| \\| |___|  \\/  |___ ______ __ _ __ _ ___/ __(_)__ _ _ _  __ _| |_ _  _ _ _ ___ ___\n" +
+                "| .` / _ \\ |\\/| / -_|_-<_-</ _` / _` / -_)__ \\ / _` | ' \\/ _` |  _| || | '_/ -_|_-<\n" +
+                "|_|\\_\\___/_|  |_\\___/__/__/\\__,_\\__, \\___|___/_\\__, |_||_\\__,_|\\__|\\_,_|_| \\___/__/\n" +
+                "                                |___/          |___/                               \n" +
+                "NoMessageSignatures (version " + this.getDescription().getVersion() + " for " + TARGET_VERSION + "), created by jandie1505\n"
+        );
+
+        if (!this.hasCorrectVersion()) {
+            this.getLogger().log(
+                    Level.WARNING,
+                    "Server version " + TARGET_VERSION + " is not compatible with current server version.\n" +
+                    "Some features might not work as intended.\n" +
+                    "Consider checking if there is an update at https://github.com/jandie1505/NoMessageSignatures/releases."
+            );
+        }
+
+        if (!this.packetMode.isPacketMode()) this.getLogger().log(Level.WARNING, "Packet mode not enabled.");
+
     }
 
     // UTILITIES
 
-    private void setUseAlternativeMode() {
-
-        switch (this.config.getString("mode", "auto")) {
-            case "remove_signatures" -> this.useAlternativeMode = false;
-            case "system_messages" -> this.useAlternativeMode = true;
-            default -> {
-
-                try {
-                    Class.forName("org.bukkit.craftbukkit.v1_21_R1.entity.CraftPlayer");
-                    this.useAlternativeMode = false;
-                } catch (ClassNotFoundException e) {
-                    this.useAlternativeMode = true;
-                }
-
-            }
+    /**
+     * Returns true if the server has the correct version for Packet replacement mode to work.
+     */
+    private boolean hasCorrectVersion() {
+        try {
+            Class.forName("org.bukkit.craftbukkit." + TARGET_VERSION + ".entity.CraftPlayer");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
         }
-
     }
 
     public String getProtectionMessage() {
         return "§7The following types of chat messages are protected from chat reporting:\n" +
                 " " + "§7[§a✔§7]" + " §7Chat messages\n" +
-                " " + (!this.useAlternativeMode ? "§7[§a✔§7]" : "§7[§c❌§7]") + " §7/say, /me and other public messaging commands\n" +
-                " " + (!this.useAlternativeMode ? "§7[§a✔§7]" : "§7[§c❌§7]") + " §7/msg, /tell and other private messaging commands";
-    }
-
-    public String getNotProtectedMessage() {
-        return "\n§4§l ---------- WARNING! ----------\n" +
-                "§4An error with NoMessageSignatures occurred.§r\n" +
-                "§4§lYOU ARE NO LONGER PROTECTED FROM CHAT REPORTING!§r\n" +
-                "§4Consider not using the chat at all until this error is fixed.§r\n" +
-                "§4§l--------------------§r\n";
+                " " + (this.packetMode.isPacketMode() ? "§7[§a✔§7]" : "§7[§c❌§7]") + " §7/say, /me and other public messaging commands\n" +
+                " " + (this.packetMode.isPacketMode() ? "§7[§a✔§7]" : "§7[§c❌§7]") + " §7/msg, /tell and other private messaging commands";
     }
 
     private Connection getConnection(ServerPlayer serverPlayer) {
@@ -106,7 +118,6 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
 
             return  (Connection) field.get(serverGamePacketListener);
         } catch (Exception e) {
-            this.error = true;
             this.getLogger().log(Level.WARNING, "Exception while getting connection of player " + serverPlayer.getUUID(), e);
             return null;
         }
@@ -115,41 +126,44 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
 
     // CONFIG
 
+    /**
+     * Resets the config to the default values.
+     */
     public void resetConfig() {
         this.config = new YamlConfiguration();
 
-        this.config.set("mode", "auto");
-        this.config.setComments("mode", List.of(
-                "This value changes the method the plugin is using to remove message signatures.",
-                "Keep this value on 'auto' if you don't know what you're doing.",
+        this.config.set("disable_packet_mode", false);
+        this.config.setComments("disable_packet_mode", List.of(
+                "The plugin can use 2 different ways to prevent chat reporting.",
+                "- Packet replacement:",
+                "  This will remove the messages signatures on packet level.",
+                "  It replaces the ClientboundPlayerChatPackets with DisguisedPlayerChatPackets (which have no signature).",
+                "  Any chat plugin should work as intended in this mode, since the modification is made after the AsyncPlayerChatEvent of Bukkit.",
+                "  The drawback of this mode is that it requires the exact server version the plugin is made for.",
+                "- System messages:",
+                "  Cancels the AsyncPlayerChatEvent at the HIGHEST priority and sends the message as a system message to all recipients (if the event has not been cancelled before).",
+                "  Any chat plugin should work as intended AS LONG AS it doesn't modify the chat event in the HIGHEST or MONITOR priority.",
+                "  SINCE PRIVATE MESSAGES (/me, /say, /msg, /tell, ...) ARE NOT AFFECTED BY THE CHAT EVENT, THEY ARE STILL SIGNED AND REPORTABLE!",
+                "  This mode also should work if the server does not have the version the plugin was made for (but only if the AsyncPlayerChatEvent has not been changed).",
+                "The plugin automatically uses 'Packet replacement' mode if it is available. If not, 'System messages' mode will be used.",
                 "",
-                "Available Values:",
-                "- auto:",
-                "  Use 'remove_signatures' if available, else use 'system_messages'.",
-                "- remove_signatures:",
-                "  Replaces all ClientboundPlayerChatPackets with DisguisedPlayerChatPackets (which have no signature).",
-                "  Any chat plugin should work as normal in this mode, since the modification is made after everything has already changed.",
-                "  This mode only works if the server is running the version that the plugin was made for.",
-                "- system_messages:",
-                "  Cancels the chat event at the HIGHEST priority and sends the message as system message to all recipients (if the event has not been cancelled before).",
-                "  Any chat plugin should work as normal when it is not using the HIGHEST priority for its chat events.",
-                "  SINCE PRIVATE MESSAGES ARE NOT AFFECTED BY THE CHAT EVENT, THEY ARE STILL SIGNED AND REPORTABLE!",
-                "  This mode also should work when the server does not have the version the plugin was made for (except the chat event has been changed)."
+                "This option forces the plugin to use the 'System messages' mode and disables the 'Packet replacement' mode (not recommended, read the information above)."
         ));
 
         this.config.set("hide_banner", false);
         this.config.setComments("hide_banner", List.of(
                 "Hides the 'Chat Messages cannot be verified on this server' banner.",
-                "This does only work if the mode is set to 'auto' or 'remove_signatures'."
+                "This does only work if the plugin is using the 'Packet replacement' mode."
         ));
 
         this.config.set("announce_protections", true);
         this.config.setComments("announce_protections", List.of("If this is enabled, which type of messages are encrypted and which are not."));
 
-        this.setUseAlternativeMode();
-
     }
 
+    /**
+     * Reloads the config file.
+     */
     public void reloadConfig() {
         try {
 
@@ -160,7 +174,6 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
             }
 
             this.config.load(this.configFile);
-            this.setUseAlternativeMode();
 
         } catch (IOException | InvalidConfigurationException e) {
             this.getLogger().log(Level.WARNING, "Exception while loading config, using defaults", e);
@@ -172,52 +185,56 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerJoin(PlayerJoinEvent event) {
 
-        if (!this.useAlternativeMode) {
+        if (this.packetMode.isPacketMode()) {
+
+            // Get connection of player
 
             Connection connection = this.getConnection(((CraftPlayer) event.getPlayer()).getHandle());
 
             if (connection == null) {
-                event.getPlayer().sendMessage(this.getNotProtectedMessage());
-                this.error = true;
+                this.packetMode.disablePacketMode();
+                this.getLogger().log(Level.WARNING, "Failed to get connection of player " + event.getPlayer().getUniqueId());
                 return;
             }
 
-            // Show protected message to player
-            if (this.config.getBoolean("announce_protections", false) && !this.error) {
-                event.getPlayer().sendMessage(this.getProtectionMessage());
-            }
+            // Add outgoing channel handler to manage chat and server data packets (Client --> Server XXX Clients)
 
-            // OUTGOING CHAT MESSAGES (Client --> Server XXX Clients)
-            connection.channel.pipeline().addBefore("packet_handler", this.getName() + "-WRITER", new ChannelOutboundHandlerAdapter() {
+            try {
 
-                public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
+                connection.channel.pipeline().addBefore("packet_handler", this.getName() + "-WRITER", new ChannelOutboundHandlerAdapter() {
 
-                    if (msg instanceof ClientboundPlayerChatPacket old) {
-                        ClientboundDisguisedChatPacket packet = new ClientboundDisguisedChatPacket(old.unsignedContent() != null ? old.unsignedContent() : Component.literal(old.body().content()), old.chatType());
-                        ctx.write(packet, promise);
-                        return;
-                    } else if (msg instanceof ClientboundServerDataPacket old) {
+                    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) {
 
-                        if (config.getBoolean("hide_banner", false)) {
-                            ClientboundServerDataPacket packet = new ClientboundServerDataPacket(old.motd(), old.iconBytes());
+                        if (msg instanceof ClientboundPlayerChatPacket old) {
+                            ClientboundDisguisedChatPacket packet = new ClientboundDisguisedChatPacket(old.unsignedContent() != null ? old.unsignedContent() : Component.literal(old.body().content()), old.chatType());
                             ctx.write(packet, promise);
                             return;
+                        } else if (msg instanceof ClientboundServerDataPacket old) {
+
+                            if (config.getBoolean("hide_banner", false)) {
+                                ClientboundServerDataPacket packet = new ClientboundServerDataPacket(old.motd(), old.iconBytes());
+                                ctx.write(packet, promise);
+                                return;
+                            }
+
                         }
 
+                        ctx.write(msg, promise);
                     }
 
-                    ctx.write(msg, promise);
-                }
+                });
 
-            });
-
-        } else {
-
-            // Show protected message in alternative mode
-            if (this.config.getBoolean("announce_protections", false) && !this.error) {
-                event.getPlayer().sendMessage(this.getProtectionMessage());
+            } catch (Exception e) {
+                this.packetMode.disablePacketMode();
+                this.getLogger().log(Level.WARNING, "Failed to add channel handler to pipeline of " + event.getPlayer().getUniqueId(), e);
             }
 
+        }
+
+        // Show protected message to players
+
+        if (this.config.getBoolean("announce_protections", false)) {
+            event.getPlayer().sendMessage(this.getProtectionMessage());
         }
 
     }
@@ -225,7 +242,7 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
 
-        if (!this.useAlternativeMode) {
+        if (this.packetMode.isPacketMode()) {
 
             Connection connection = this.getConnection(((CraftPlayer) event.getPlayer()).getHandle());
 
@@ -235,7 +252,7 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
 
             try {
                 connection.channel.pipeline().remove(this.getName() + "-WRITER");
-            } catch (NoSuchElementException ignored) {
+            } catch (Exception ignored) {
                 // normally, the packer writer is already removed at this point
             }
 
@@ -243,25 +260,21 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
 
     }
 
+    /**
+     * This event is used if the packet mode is disabled.
+     * It will cancel the chat event and send its message as server message to all players.
+     */
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onAsyncPlayerChat(AsyncPlayerChatEvent event) {
+        if (event.isCancelled()) return;
+        if (this.packetMode.isPacketMode()) return;
+        event.setCancelled(true);
 
-        // Cancels the chat event and sends chat message as system message to all recipients.
-        if (this.useAlternativeMode) {
+        String formattedMessage = event.getFormat().replace("%1$s", event.getPlayer().getDisplayName()).replace("%2$s", event.getMessage());
+        this.getLogger().log(Level.INFO, "Chat message: " + formattedMessage);
 
-            if (event.isCancelled()) {
-                return;
-            }
-
-            event.setCancelled(true);
-
-            String formattedMessage = event.getFormat().replace("%1$s", event.getPlayer().getDisplayName()).replace("%2$s", event.getMessage());
-
-            for (Player player : event.getRecipients()) {
-                player.sendMessage(formattedMessage);
-            }
-
-            return;
+        for (Player player : event.getRecipients()) {
+            player.sendMessage(formattedMessage);
         }
 
     }
@@ -272,8 +285,7 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
 
         if (args.length < 1) {
-            sender.sendMessage(this.error ? this.getNotProtectedMessage() : this.getProtectionMessage());
-
+            sender.sendMessage(this.getProtectionMessage());
             return true;
         }
 
@@ -287,8 +299,9 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
                 }
 
                 this.reloadConfig();
-                sender.sendMessage("Config reloaded");
+                sender.sendMessage("Config reloaded.\nPlease note that this will NOT update the mode the plugin is using to prevent chat reporting.");
             }
+            case "mode" -> sender.sendMessage("§7Current mode: " + (this.packetMode.isPacketMode() ? "§aPacket replacement" : "§cSystem messages"));
         }
 
         return true;
@@ -298,14 +311,18 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
     public List<String> onTabComplete(CommandSender sender, Command cmd, String label, String[] args) {
 
         if (sender == this.getServer().getConsoleSender()) {
-            return List.of("reload");
+            return List.of("mode", "reload");
         } else {
-            return List.of();
+            return List.of("mode");
         }
 
     }
 
     // GETTER
+
+    public boolean isPacketMode() {
+        return this.packetMode.isPacketMode();
+    }
 
     public YamlConfiguration getPluginConfig() {
         return this.config;

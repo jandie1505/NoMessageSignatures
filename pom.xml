@@ -6,7 +6,7 @@
 
     <groupId>net.jandie1505.nomessagesigning</groupId>
     <artifactId>NoMessageSignatures</artifactId>
-    <version>1.21-SNAPSHOT</version>
+    <version>1.1-1.21-SNAPSHOT</version>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
