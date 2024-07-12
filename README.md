@@ -1,4 +1,4 @@
-# No Message Signatures
+# NoMessageSignatures
 ## Overview
 NoMessageSignatures is a minecraft plugin which removes the chat message signatures on packet level to disable chat reporting.
 ## How to install
