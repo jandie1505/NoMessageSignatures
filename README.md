@@ -3,6 +3,7 @@
 NoMessageSignatures is a minecraft plugin which removes the chat message signatures on packet level to disable chat reporting.
 ## How to install
 To install this plugin, download the plugin for the correct minecraft version from the releases page and put it into your plugins directory.  
+Please ensure that `enforce-secure-profile` is set to `false` in your `server.properties`.  
 If the plugin is not available for your minecraft version, you can still use it, but it can only use the fallback mode where all chat messages will be sent as system messages and private messages are not protected.
 ## Commands
 | Command | Description | Permission |
