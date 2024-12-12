@@ -29,6 +29,12 @@
             <scope>provided</scope>
             <classifier>remapped-mojang</classifier>
         </dependency>
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>24.0.0</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
 
     <build>

@@ -22,6 +22,7 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.*;
 import java.lang.reflect.Field;
@@ -282,7 +283,7 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
     // COMMAND
 
     @Override
-    public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
+    public boolean onCommand(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, @NotNull String[] args) {
 
         if (args.length < 1) {
             sender.sendMessage(this.getProtectionMessage());
@@ -308,7 +309,9 @@ public class NoMessageSignatures extends JavaPlugin implements Listener, Command
     }
 
     @Override
-    public List<String> onTabComplete(CommandSender sender, Command cmd, String label, String[] args) {
+    @NotNull
+    public List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command cmd, @NotNull String label, @NotNull String[] args) {
+        if (args.length != 1) return List.of();
 
         if (sender == this.getServer().getConsoleSender()) {
             return List.of("mode", "reload");
