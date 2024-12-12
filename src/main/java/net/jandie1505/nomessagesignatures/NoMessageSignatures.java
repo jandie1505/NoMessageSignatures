@@ -13,7 +13,7 @@ import net.minecraft.server.network.ServerCommonPacketListenerImpl;
 import org.bukkit.command.*;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
-import org.bukkit.craftbukkit.v1_21_R2.entity.CraftPlayer;
+import org.bukkit.craftbukkit.v1_21_R3.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.logging.Level;
 
 public class NoMessageSignatures extends JavaPlugin implements Listener, CommandExecutor, TabCompleter {
-    public static final String TARGET_VERSION = "v1_21_R2";
+    public static final String TARGET_VERSION = "v1_21_R3";
     private final Mode packetMode;
     private YamlConfiguration config;
     private File configFile;
