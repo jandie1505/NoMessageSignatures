@@ -1,4 +1,4 @@
-package net.jandie1505.nomessagesignatures;
+package net.jandie1505.nomessagesignatures.utilities;
 
 /**
  * For internal use only.
