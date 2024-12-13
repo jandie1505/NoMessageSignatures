@@ -1,10 +1,7 @@
 package net.jandie1505.nomessagesignatures.commands;
 
 import net.jandie1505.nomessagesignatures.NoMessageSignatures;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.CommandSender;
-import org.bukkit.command.TabCompleter;
+import org.bukkit.command.*;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -37,6 +34,58 @@ public class NMSCommand implements CommandExecutor, TabCompleter {
                 sender.sendMessage("Config reloaded.\nPlease note that this will NOT update the mode the plugin is using to prevent chat reporting.");
             }
             case "mode" -> sender.sendMessage("§7Current mode: " + (this.plugin.getPacketMode().isPacketMode() ? "§aPacket replacement" : "§cSystem messages"));
+            case "metrics-disable" -> {
+
+                if (sender != this.plugin.getServer().getConsoleSender()) {
+                    sender.sendMessage("This command can only be executed by console");
+                    return true;
+                }
+
+                this.plugin.getMetrics().disableMetrics();
+                sender.sendMessage("Metrics disabled until restart (if it was active before)");
+                sender.sendMessage("You can make this change permanent by setting enable-metrics in config to false");
+            }
+            case "metrics-status" -> {
+                sender.sendMessage("§7Current metrics status: " + (this.plugin.getMetrics().isEnabled() ? "enabled" : "disabled"));
+                sender.sendMessage("§7You can change metrics in the config using: \"enable-metrics: (true|false)\"");
+            }
+            case "accept-metrics" -> {
+
+                if (sender != this.plugin.getServer().getConsoleSender()) {
+                    sender.sendMessage("This command can only be executed by console");
+                    return true;
+                }
+
+                if (this.plugin.getConfig().contains("enable-metrics")) {
+                    sender.sendMessage("Decision already made. Use enable-metrics in config to change.");
+                    return true;
+                }
+
+                this.plugin.getConfigManager().getConfig().set("enable-metrics", true);
+                this.plugin.getConfigManager().getConfig().setComments("enable-metrics", List.of("If set to true, the plugin sends anonymous statistics to bstats.org.", "This allows us to see, for example, how many servers are using the plugin.", "If set to false or the option does not exist, no data is sent."));
+                this.plugin.saveConfig();
+                this.plugin.getMetrics().enableMetrics();
+                sender.sendMessage("Metrics enabled");
+
+            }
+            case "deny-metrics" -> {
+
+                if (sender != this.plugin.getServer().getConsoleSender()) {
+                    sender.sendMessage("This command can only be executed by console");
+                    return true;
+                }
+
+                if (this.plugin.getConfig().contains("enable-metrics")) {
+                    sender.sendMessage("Decision already made. Use enable-metrics in config to change.");
+                    return true;
+                }
+
+                this.plugin.getConfigManager().getConfig().set("enable-metrics", false);
+                this.plugin.getConfigManager().getConfig().setComments("enable-metrics", List.of("If set to true, the plugin sends anonymous statistics to bstats.org.", "This allows us to see, for example, how many servers are using the plugin.", "If set to false or the option does not exist, no data is sent."));
+                this.plugin.saveConfig();
+                sender.sendMessage("Metrics disabled");
+
+            }
         }
 
         return true;
@@ -48,9 +97,9 @@ public class NMSCommand implements CommandExecutor, TabCompleter {
         if (args.length != 1) return List.of();
 
         if (sender == this.getPlugin().getServer().getConsoleSender()) {
-            return List.of("mode", "reload");
+            return List.of("mode", "reload", "metrics-status", "metrics-disable");
         } else {
-            return List.of("mode");
+            return List.of("mode", "metrics-status");
         }
 
     }

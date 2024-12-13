@@ -3,26 +3,24 @@ package net.jandie1505.nomessagesignatures;
 import net.jandie1505.nomessagesignatures.commands.NMSCommand;
 import net.jandie1505.nomessagesignatures.listeners.EventListener;
 import net.jandie1505.nomessagesignatures.utilities.ConfigManager;
+import net.jandie1505.nomessagesignatures.utilities.MetricsManager;
 import net.jandie1505.nomessagesignatures.utilities.Mode;
 import net.minecraft.network.Connection;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerCommonPacketListenerImpl;
 import org.bukkit.command.*;
-import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.*;
 import java.lang.reflect.Field;
-import java.util.List;
 import java.util.logging.Level;
 
 public final class NoMessageSignatures extends JavaPlugin {
     public static final String TARGET_VERSION = "v1_21_R3";
     private final Mode packetMode;
     private final ConfigManager configManager;
-    private File configFile;
+    private MetricsManager metrics;
 
     public NoMessageSignatures() {
         this.packetMode = new Mode();
@@ -56,6 +54,11 @@ public final class NoMessageSignatures extends JavaPlugin {
 
         this.packetMode.init(!this.getConfig().getBoolean("disable_packet_mode", false) && this.hasCorrectVersion());
 
+        // Metrics
+
+        this.metrics = new MetricsManager(this);
+        if (this.configManager.getConfig().getBoolean("enable-metrics", false)) this.metrics.enableMetrics();
+
         // Info message
 
         this.getLogger().log(Level.INFO, getEnabledMessage());
@@ -70,6 +73,22 @@ public final class NoMessageSignatures extends JavaPlugin {
         }
 
         if (!this.packetMode.isPacketMode()) this.getLogger().log(Level.WARNING, "Packet mode not enabled.");
+        if (this.metrics.isEnabled()) this.getLogger().log(Level.INFO, "Metrics enabled");
+
+        if (!this.getConfig().contains("enable-metrics")) {
+            this.getLogger().log(Level.INFO, "\n" +
+                    "------------------------------\n" +
+                    "Do you agree that NoMessageSignatures collects anonymous statistics?\n" +
+                    "See https://bstats.org/plugin/bukkit/NoMessageSignatures/24129 for more information.\n" +
+                    "\n" +
+                    "Accept command: nomessagesignatures accept-metrics\n" +
+                    "Deny command: nomessagesignatures deny-metrics\n" +
+                    "\n" +
+                    "This message will be displayed until you either accept or deny.\n" +
+                    "As long as you do not explicitly accept, no data will be collected.\n" +
+                    "------------------------------"
+            );
+        }
 
     }
 
@@ -133,6 +152,10 @@ public final class NoMessageSignatures extends JavaPlugin {
     @Override
     public @NotNull YamlConfiguration getConfig() {
         return this.configManager.getConfig();
+    }
+
+    public MetricsManager getMetrics() {
+        return this.metrics;
     }
 
 }

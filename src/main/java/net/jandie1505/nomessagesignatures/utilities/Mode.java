@@ -4,7 +4,7 @@ package net.jandie1505.nomessagesignatures.utilities;
  * For internal use only.
  * Prevents accidentally enabling the packet mode if it has been disabled before.
  */
-public class Mode {
+public final class Mode {
     private boolean packetMode;
     private boolean initialized;
 

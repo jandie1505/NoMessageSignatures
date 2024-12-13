@@ -6,4 +6,3 @@ commands:
   nomessagesignatures:
     description: Info command, mode subcommand and reload subcommand which can only be used by console.
     usage: /nomessagesignatures [mode/reload]
-
