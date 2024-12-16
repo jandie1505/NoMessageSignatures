@@ -8,21 +8,17 @@ import net.minecraft.network.Connection;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerCommonPacketListenerImpl;
 import org.bukkit.command.*;
-import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.*;
 import java.lang.reflect.Field;
-import java.util.List;
 import java.util.logging.Level;
 
 public final class NoMessageSignatures extends JavaPlugin {
     public static final String TARGET_VERSION = "v1_21_R3";
     private final Mode packetMode;
     private final ConfigManager configManager;
-    private File configFile;
 
     public NoMessageSignatures() {
         this.packetMode = new Mode();

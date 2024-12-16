@@ -2,7 +2,7 @@ package net.jandie1505.nomessagesignatures.listeners;
 
 import net.jandie1505.nomessagesignatures.NoMessageSignatures;
 import net.minecraft.network.Connection;
-import org.bukkit.craftbukkit.v1_21_R3.entity.CraftPlayer;
+import org.bukkit.craftbukkit.entity.CraftPlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;

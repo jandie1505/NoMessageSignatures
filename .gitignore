@@ -5,6 +5,7 @@ target/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
+build/
 
 ### IntelliJ IDEA ###
 .idea/modules.xml
@@ -30,7 +31,6 @@ target/
 /dist/
 /nbdist/
 /.nb-gradle/
-build/
 !**/src/main/**/build/
 !**/src/test/**/build/
 
@@ -39,3 +39,8 @@ build/
 
 ### Mac OS ###
 .DS_Store
+# Ignore Gradle project-specific cache directory
+.gradle/
+.gradle-cache/
+gradle-app.setting
+.gradletasknamecache
