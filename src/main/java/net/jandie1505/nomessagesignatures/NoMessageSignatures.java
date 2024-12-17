@@ -95,7 +95,7 @@ public final class NoMessageSignatures extends JavaPlugin {
         try {
             ServerCommonPacketListenerImpl serverGamePacketListener = serverPlayer.connection;
 
-            Field field = ServerCommonPacketListenerImpl.class.getDeclaredField("e");
+            Field field = ServerCommonPacketListenerImpl.class.getDeclaredField("connection");
             field.setAccessible(true);
 
             return  (Connection) field.get(serverGamePacketListener);

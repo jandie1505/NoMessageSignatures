@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "net.jandie1505"
-version = "1.3-SNAPSHOT"
+version = "1.3-1.21.4-SNAPSHOT"
 
 repositories {
     mavenCentral()
