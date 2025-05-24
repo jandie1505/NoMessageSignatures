@@ -1,10 +1,10 @@
 plugins {
     id("java")
-    id("io.papermc.paperweight.userdev") version "2.0.0-beta.8"
+    id("io.papermc.paperweight.userdev") version "2.0.0-beta.17"
 }
 
 group = "net.jandie1505"
-version = "1.3-1.21.4-SNAPSHOT"
+version = "1.3-1.21.5-SNAPSHOT"
 
 repositories {
     mavenCentral()
@@ -17,5 +17,11 @@ repositories {
 paperweight.reobfArtifactConfiguration = io.papermc.paperweight.userdev.ReobfArtifactConfiguration.MOJANG_PRODUCTION
 
 dependencies {
-    paperweight.paperDevBundle("1.21.4-R0.1-SNAPSHOT")
+    paperweight.paperDevBundle("1.21.5-R0.1-SNAPSHOT")
+}
+
+tasks.processResources {
+    filesMatching("plugin.yml") {
+        expand("version" to project.version)
+    }
 }
