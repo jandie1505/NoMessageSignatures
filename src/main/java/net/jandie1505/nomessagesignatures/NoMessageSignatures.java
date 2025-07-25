@@ -17,7 +17,7 @@ import java.lang.reflect.Field;
 import java.util.logging.Level;
 
 public final class NoMessageSignatures extends JavaPlugin {
-    public static final String TARGET_VERSION = "1.21.1-R0.1-SNAPSHOT";
+    public static final String TARGET_VERSION = "1.21.7-R0.1-SNAPSHOT";
     private final Mode packetMode;
     private final ConfigManager configManager;
 
