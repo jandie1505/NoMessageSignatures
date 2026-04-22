@@ -17,7 +17,7 @@ import java.lang.reflect.Field;
 import java.util.logging.Level;
 
 public final class NoMessageSignatures extends JavaPlugin {
-    public static final String TARGET_VERSION = "1.21.8-R0.1-SNAPSHOT";
+    public static final String TARGET_VERSION = "1.21.11-R0.1-SNAPSHOT";
     private final Mode packetMode;
     private final ConfigManager configManager;
 
@@ -86,15 +86,11 @@ public final class NoMessageSignatures extends JavaPlugin {
                 " " + (this.packetMode.isPacketMode() ? "§7[§a✔§7]" : "§7[§c❌§7]") + " §7/msg, /tell and other private messaging commands";
     }
 
-    public Connection getConnection(ServerPlayer serverPlayer) {
+    public Connection getConnection(@NotNull ServerPlayer serverPlayer) {
 
         try {
             ServerCommonPacketListenerImpl serverGamePacketListener = serverPlayer.connection;
-
-            Field field = ServerCommonPacketListenerImpl.class.getDeclaredField("connection");
-            field.setAccessible(true);
-
-            return  (Connection) field.get(serverGamePacketListener);
+            return serverGamePacketListener.connection;
         } catch (Exception e) {
             this.getLogger().log(Level.WARNING, "Exception while getting connection of player " + serverPlayer.getUUID(), e);
             return null;
@@ -109,7 +105,7 @@ public final class NoMessageSignatures extends JavaPlugin {
                 "| .` / _ \\ |\\/| / -_|_-<_-</ _` / _` / -_)__ \\ / _` | ' \\/ _` |  _| || | '_/ -_|_-<\n" +
                 "|_|\\_\\___/_|  |_\\___/__/__/\\__,_\\__, \\___|___/_\\__, |_||_\\__,_|\\__|\\_,_|_| \\___/__/\n" +
                 "                                |___/          |___/                               \n" +
-                "NoMessageSignatures (version " + this.getDescription().getVersion() + " for " + TARGET_VERSION + "), created by jandie1505\n";
+                "NoMessageSignatures (version " + this.getPluginMeta().getVersion() + " for " + TARGET_VERSION + "), created by jandie1505\n";
     }
 
     // GETTER
